@@ -1,0 +1,199 @@
+<!doctype html>
+<html>
+<head>
+<title>NgeBlog</title>
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet">
+<style type="text/css">
+/* required style*/ 
+.none{display: none;}
+
+/* optional styles */
+table tr th, table tr td{font-size: 1.2rem;}
+.row{ margin:20px 20px 20px 20px;width: 100%;}
+.glyphicon{font-size: 20px;}
+.glyphicon-plus{float: right;}
+a.glyphicon{text-decoration: none;cursor: pointer;}
+.glyphicon-trash{margin-left: 10px;}
+.alert{
+    width: 50%;
+    border-radius: 0;
+    margin-top: 10px;
+    margin-left: 10px;
+}
+</style>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+<script src = "https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular.min.js"></script>
+<script>
+// define application
+angular.module("ngeblogApp", [])
+.controller("blogController", function($scope,$http){
+    $scope.bloglist = [];
+    $scope.tempBlogData = {};
+    // function to get records from the database
+    $scope.getRecords = function(){
+        $http.get('blog.php', {
+            params:{
+                'type':'view'
+            }
+        }).success(function(response){
+            // alert(response.status);
+            if(response.status == 'OK'){
+                // alert(JSON.stringify(response.records));
+                $scope.bloglist = response.records;
+            }
+        });
+    };
+    
+    // function to insert or update blog data to the database
+     $scope.saveBlog = function(type){
+        var data = $.param({
+            'data':$scope.tempBlogData,
+            'type':type
+        });
+
+        var config = {
+            headers : {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;'
+            }
+        };
+
+        $http.post("blog.php", data, config).success(function(response){
+            if(response.status == 'OK'){
+                if(type == 'add'){
+                     $scope.bloglist.push({
+                        blog_id:response.data.blog_id,
+                        blog_title:response.data.blog_title,
+                        blog_content:response.data.blog_content
+                    });
+                }else{
+                   
+                    $scope.bloglist[$scope.index].blog_id = $scope.tempBlogData.blog_id;
+                    $scope.bloglist[$scope.index].blog_title = $scope.tempBlogData.blog_title;
+                    $scope.bloglist[$scope.index].blog_content = $scope.tempBlogData.blog_content;
+                }
+                $scope.blogForm.$setPristine();
+                $scope.tempBlogData = {};
+                $('.formData').slideUp();
+                $scope.messageSuccess(response.msg);
+            }else{
+                $scope.messageError(response.msg);
+            }
+        });
+    };
+    
+    // function to add blog data
+    $scope.addBlog = function(){
+        $scope.saveBlog('add');
+    };
+    
+    // function to edit blog data
+    $scope.editBlog = function(blog){
+        $scope.tempBlogData = {
+            blog_id:blog.blog_id,
+            blog_title:blog.blog_title,
+            blog_content:blog.blog_content
+        };
+        // alert(JSON.stringify($scope.tempBlogData));
+        $scope.index = $scope.bloglist.indexOf(blog);
+        $('.formData').slideDown();
+    };
+    
+    // function to update blog data
+    $scope.updateBlog = function(){
+        $scope.saveBlog('edit');
+    };
+    
+    // function to delete blog data from the database
+    $scope.deleteBlog = function(blog){
+        var conf = confirm('Are you sure to delete this post ?');
+        if(conf === true){
+            var data = $.param({
+                'id': blog.blog_id,
+                'type':'delete'    
+            });
+            var config = {
+                headers : {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;'
+                }    
+            };
+            $http.post("blog.php",data,config).success(function(response){
+                if(response.status == 'OK'){
+                    var index = $scope.bloglist.indexOf(blog);
+                    $scope.bloglist.splice(index,1);
+                    $scope.messageSuccess(response.msg);
+                }else{
+                    $scope.messageError(response.msg);
+                }
+            });
+        }
+    };
+    
+    // function to display success message
+    $scope.messageSuccess = function(msg){
+        $('.alert-success > p').html(msg);
+        $('.alert-success').show();
+        $('.alert-success').delay(5000).slideUp(function(){
+            $('.alert-success > p').html('');
+        });
+    };
+    
+    // function to display error message
+    $scope.messageError = function(msg){
+        $('.alert-danger > p').html(msg);
+        $('.alert-danger').show();
+        $('.alert-danger').delay(5000).slideUp(function(){
+            $('.alert-danger > p').html('');
+        });
+    };
+});
+</script>
+</head>
+<body ng-app="ngeblogApp">
+<div class="container" ng-controller="blogController" ng-init="getRecords()">
+<div class="row"><a href="logout.php" class="btn btn-warning">Logout</a></div>
+    <div class="row">
+        <h2>NgeBlog Dashboard</h2>
+        <div class="panel panel-default bloglist-content">
+            <div class="panel-heading">Manage Blogs<a href="javascript:void(0);" class="glyphicon glyphicon-plus" onClick="$('.formData').slideToggle();"></a></div>
+            <div class="alert alert-danger none"><p></p></div>
+            <div class="alert alert-success none"><p></p></div>
+            <div class="panel-body none formData">
+                <form class="form" name="blogForm">
+                    <div class="form-group">
+                        <label>Blog Title</label>
+                        <input type="text" class="form-control" name="blog_title" ng-model="tempBlogData.blog_title"/>
+                    </div>
+                    <div class="form-group">
+                        <label>Blog Content</label>
+                        <!-- <input type="text" class="form-control" name="blog_content" ng-model="tempBlogData.blog_content"/> -->
+                        <textarea class="form-control" name="blog_content" ng-model="tempBlogData.blog_content"></textarea>
+                    </div>
+                    
+                    <a href="javascript:void(0);" class="btn btn-warning" onClick="$('.formData').slideUp();">Cancel</a>
+                    <a href="javascript:void(0);" class="btn btn-success" ng-hide="tempBlogData.blog_id" ng-click="addBlog()">Add Blogpost</a>
+                    <a href="javascript:void(0);" class="btn btn-success" ng-hide="!tempBlogData.blog_id" ng-click="updateBlog()">Update Blogpost</a>
+                </form>
+            </div>
+            <table class="table table-striped">
+                <tr>
+                    <th width="5%">#</th>
+                    <th width="35%">Blog Title</th>
+                    <th width="50%">Blog Content</th>
+                    <th width="10%"></th>
+                </tr>
+                <tr ng-repeat="blog in bloglist">
+                    <td>{{$index + 1}}</td>
+                    <td>{{blog.blog_title}}</td>
+                    <td>{{blog.blog_content}}</td>
+                    <td>
+                        <a href="javascript:void(0);" class="glyphicon glyphicon-edit" ng-click="editBlog(blog)"></a>
+                        <a href="javascript:void(0);" class="glyphicon glyphicon-trash" ng-click="deleteBlog(blog)"></a>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>
